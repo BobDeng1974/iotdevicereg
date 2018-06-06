@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	viper.SetEnvPrefix("iotdevicereg")
+	viper.SetEnvPrefix("devicereg")
 	viper.AutomaticEnv()
 }
 
