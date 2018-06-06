@@ -2,6 +2,8 @@
 // sources:
 // sql/20180606143811_add_users.down.sql
 // sql/20180606143811_add_users.up.sql
+// sql/20180606150206_add_devices.down.sql
+// sql/20180606150206_add_devices.up.sql
 package migrations
 
 import (
@@ -107,6 +109,46 @@ func _20180606143811_add_usersUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __20180606150206_add_devicesDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x01\x00\x00\xff\xff\x00\x00\x00\x00\x00\x00\x00\x00")
+
+func _20180606150206_add_devicesDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__20180606150206_add_devicesDownSql,
+		"20180606150206_add_devices.down.sql",
+	)
+}
+
+func _20180606150206_add_devicesDownSql() (*asset, error) {
+	bytes, err := _20180606150206_add_devicesDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "20180606150206_add_devices.down.sql", size: 0, mode: os.FileMode(420), modTime: time.Unix(1528297301, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __20180606150206_add_devicesUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x8c\x90\xc1\x6a\xf2\x40\x14\x85\xf7\x79\x8a\xb3\x33\x01\xdf\xc0\xd5\xa8\xd7\xff\x1f\x9a\x4c\xc2\xcc\x04\x4d\x37\x21\x75\x86\x72\xa9\x18\x49\x26\xd2\xbe\x7d\x71\xd0\x12\xa1\x8b\xee\xee\xe5\x3b\x07\x0e\xdf\x46\x93\xb0\x04\xdb\x54\x04\xc7\xe3\xa5\x1f\x39\x70\x7f\x86\x30\x20\x55\x17\x48\x17\x7c\x76\x7d\x3f\x2c\x96\x58\xf4\x53\x88\x67\xb6\x4a\x92\x47\x4f\xac\x73\x82\xdc\x41\x95\x16\x74\x90\xc6\x1a\x38\x7f\xe5\xa3\x1f\x91\x26\x00\x3b\x18\xd2\x52\xe4\xa8\xb4\x2c\x84\x6e\xf0\x42\xcd\x32\x01\xa6\xd1\x0f\x2d\x3b\x48\x65\xe9\x1f\xe9\xd8\x57\x75\x9e\x43\xd3\x8e\x34\xa9\x0d\x99\x98\x19\x53\x76\xd9\xad\x70\x19\xf8\xda\x05\xdf\x7e\xf8\x2f\xac\x1b\x4b\xe2\xa7\x12\xe9\xf4\x76\xe2\x63\x84\x96\x0e\xf6\x89\x9d\xfa\xf3\x3b\x87\xc9\x79\x6c\xcb\xfa\x36\xb7\xd2\xb4\x91\x46\x96\xea\x39\xd6\x85\x3f\xa4\xe6\x8e\xe6\xf7\x3c\x73\x1c\x7c\x17\xbc\x6b\xbb\x00\x2b\x0b\x32\x56\x14\x15\xf6\xd2\xfe\x8f\x2f\x5e\x4b\x45\xd8\xd2\x4e\xd4\xf9\x6d\xe8\x3e\xcd\x92\x99\x51\xa9\xb6\x74\xf8\xdd\x68\x7b\x97\xd6\xb2\xfb\x4c\x80\x52\x3d\x40\x7a\x07\xd9\xea\x3b\x00\x00\xff\xff\x0a\x23\xf8\xd8\xcf\x01\x00\x00")
+
+func _20180606150206_add_devicesUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__20180606150206_add_devicesUpSql,
+		"20180606150206_add_devices.up.sql",
+	)
+}
+
+func _20180606150206_add_devicesUpSql() (*asset, error) {
+	bytes, err := _20180606150206_add_devicesUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "20180606150206_add_devices.up.sql", size: 463, mode: os.FileMode(420), modTime: time.Unix(1528297606, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -161,6 +203,8 @@ func AssetNames() []string {
 var _bindata = map[string]func() (*asset, error){
 	"20180606143811_add_users.down.sql": _20180606143811_add_usersDownSql,
 	"20180606143811_add_users.up.sql": _20180606143811_add_usersUpSql,
+	"20180606150206_add_devices.down.sql": _20180606150206_add_devicesDownSql,
+	"20180606150206_add_devices.up.sql": _20180606150206_add_devicesUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -205,6 +249,8 @@ type bintree struct {
 var _bintree = &bintree{nil, map[string]*bintree{
 	"20180606143811_add_users.down.sql": &bintree{_20180606143811_add_usersDownSql, map[string]*bintree{}},
 	"20180606143811_add_users.up.sql": &bintree{_20180606143811_add_usersUpSql, map[string]*bintree{}},
+	"20180606150206_add_devices.down.sql": &bintree{_20180606150206_add_devicesDownSql, map[string]*bintree{}},
+	"20180606150206_add_devices.up.sql": &bintree{_20180606150206_add_devicesUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
