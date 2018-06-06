@@ -1,0 +1,3 @@
+DROP TABLE devices CASCADE;
+
+DROP TYPE IF EXISTS disposition CASCADE;
