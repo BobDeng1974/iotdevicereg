@@ -9,11 +9,13 @@ import (
 	"time"
 
 	kitlog "github.com/go-kit/kit/log"
+	twrpprom "github.com/joneskoo/twirp-serverhook-prometheus"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	devicereg "github.com/thingful/twirp-devicereg-go"
 
 	"github.com/thingful/iotdevicereg/pkg/postgres"
-	//"github.com/thingful/iotdevicereg/pkg/rpc"
+	"github.com/thingful/iotdevicereg/pkg/rpc"
 	"github.com/thingful/iotdevicereg/pkg/system"
 )
 
@@ -23,9 +25,7 @@ type Config struct {
 	ListenAddr         string
 	ConnStr            string
 	EncryptionPassword string
-	HashidSalt         string
-	HashidMinLength    int
-	DatastoreAddr      string
+	EncoderAddr        string
 	Verbose            bool
 }
 
@@ -44,15 +44,13 @@ func PulseHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "ok")
 }
 
-// NewServer returns a new simple HTTP server. Is also responsible for
-// constructing all components, and injecting them into the right place. This
-// perhaps belongs elsewhere, but leaving here for now.
+// NewServer returns a new HTTP server. Is also responsible for constructing all
+// components, and injecting them into the right place. This perhaps belongs
+// elsewhere, but leaving here for now.
 func NewServer(config *Config, logger kitlog.Logger) *Server {
 	db := postgres.NewDB(&postgres.Config{
 		ConnStr:            config.ConnStr,
 		EncryptionPassword: config.EncryptionPassword,
-		HashidSalt:         config.HashidSalt,
-		HashidMinLength:    config.HashidMinLength,
 	}, logger)
 
 	//ds := datastore.NewDatastoreProtobufClient(
@@ -61,22 +59,23 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 	//		Timeout: time.Second * 10,
 	//	},
 	//)
+	deviceReg := rpc.NewDeviceReg(logger)
 
 	//enc := rpc.NewEncoder(&rpc.Config{
 	//	DB:      db,
 	//	Verbose: config.Verbose,
 	//}, logger)
 
-	//hooks := twrpprom.NewServerHooks(nil)
+	hooks := twrpprom.NewServerHooks(nil)
 
 	logger = kitlog.With(logger, "module", "server")
 	logger.Log("msg", "creating server")
 
-	//twirpHandler := encoder.NewEncoderServer(enc, hooks)
+	twirpHandler := devicereg.NewDeviceRegistrationServer(deviceReg, hooks)
 
 	// multiplex twirp handler into a mux with our other handlers
 	mux := http.NewServeMux()
-	//mux.Handle(encoder.EncoderPathPrefix, twirpHandler)
+	mux.Handle(devicereg.DeviceRegistrationPathPrefix, twirpHandler)
 	mux.HandleFunc("/pulse", PulseHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 
@@ -90,7 +89,7 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 	return &Server{
 		srv:    srv,
 		db:     db,
-		logger: kitlog.With(logger, "module", "server"),
+		logger: logger,
 	}
 }
 

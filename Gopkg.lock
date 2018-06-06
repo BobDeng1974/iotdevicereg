@@ -14,15 +14,6 @@
   version = "v1.1.0"
 
 [[projects]]
-  name = "github.com/eclipse/paho.mqtt.golang"
-  packages = [
-    ".",
-    "packets"
-  ]
-  revision = "36d01c2b4cbeb3d2a12063e4880ce30800af9560"
-  version = "v1.1.1"
-
-[[projects]]
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
   revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
@@ -63,8 +54,7 @@
   packages = [
     "jsonpb",
     "proto",
-    "ptypes/struct",
-    "ptypes/timestamp"
+    "ptypes/struct"
   ]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
   version = "v1.1.0"
@@ -201,12 +191,6 @@
   revision = "a683aaf2d516deecd70cad0c72e3ca773ecfcef0"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/speps/go-hashids"
-  packages = ["."]
-  revision = "d5e694adcaa72af25e63ab9adf934e34281e40ce"
-
-[[projects]]
   name = "github.com/spf13/afero"
   packages = [
     ".",
@@ -246,33 +230,16 @@
   version = "v1.0.2"
 
 [[projects]]
-  name = "github.com/stretchr/objx"
-  packages = ["."]
-  revision = "facf9a85c22f48d2f52f2380e4efce1768749a89"
-  version = "v0.1"
-
-[[projects]]
   name = "github.com/stretchr/testify"
-  packages = [
-    "assert",
-    "mock",
-    "require",
-    "suite"
-  ]
+  packages = ["assert"]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
 
 [[projects]]
-  name = "github.com/thingful/twirp-datastore-go"
+  branch = "master"
+  name = "github.com/thingful/twirp-devicereg-go"
   packages = ["."]
-  revision = "e4927e769f268bd8df71d99043bcaec365414d6c"
-  version = "v0.0.3"
-
-[[projects]]
-  name = "github.com/thingful/twirp-encoder-go"
-  packages = ["."]
-  revision = "3234a0f153613cf417a81752c7685bb23aaa294f"
-  version = "v0.0.1"
+  revision = "e0be22a9aaf1eb6da10fa80301709a407ad10cfc"
 
 [[projects]]
   name = "github.com/twitchtv/twirp"
@@ -281,18 +248,8 @@
     "ctxsetters",
     "internal/contextkeys"
   ]
-  revision = "2d98ac4d4ccb29e08ea745c758e6d103f971eba5"
-  version = "v5.4.0"
-
-[[projects]]
-  branch = "master"
-  name = "golang.org/x/net"
-  packages = [
-    "internal/socks",
-    "proxy",
-    "websocket"
-  ]
-  revision = "dfa909b99c79129e1100513e5cd36307665e5723"
+  revision = "1b8455b42110feb46a56aeec1ea0020067f46b11"
+  version = "v5.4.1"
 
 [[projects]]
   branch = "master"
@@ -322,6 +279,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "92056bbb20173d764ff34bd361bba1989a2bc4630dcf7a8a58c8b32852821213"
+  inputs-digest = "7bb28151fd7d31f12e3fc5745f3ae9335416c656bba415c818ab208d339c6ae7"
   solver-name = "gps-cdcl"
   solver-version = 1

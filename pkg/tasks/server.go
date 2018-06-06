@@ -64,11 +64,8 @@ clients unable to use the Protocol Buffer API.`,
 
 		config := &server.Config{
 			ListenAddr:         addr,
-			DatastoreAddr:      datastoreAddr,
 			ConnStr:            connStr,
 			EncryptionPassword: encryptionPassword,
-			HashidSalt:         hashidSalt,
-			HashidMinLength:    viper.GetInt("hashidlength"),
 			Verbose:            viper.GetBool("verbose"),
 		}
 
