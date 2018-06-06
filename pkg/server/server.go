@@ -9,11 +9,8 @@ import (
 	"time"
 
 	kitlog "github.com/go-kit/kit/log"
-	twrpprom "github.com/joneskoo/twirp-serverhook-prometheus"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/thingful/iotencoder/pkg/rpc"
-	encoder "github.com/thingful/twirp-encoder-go"
 
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 	//"github.com/thingful/iotdevicereg/pkg/rpc"
@@ -65,21 +62,21 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 	//	},
 	//)
 
-	enc := rpc.NewEncoder(&rpc.Config{
-		DB:      db,
-		Verbose: config.Verbose,
-	}, logger)
+	//enc := rpc.NewEncoder(&rpc.Config{
+	//	DB:      db,
+	//	Verbose: config.Verbose,
+	//}, logger)
 
-	hooks := twrpprom.NewServerHooks(nil)
+	//hooks := twrpprom.NewServerHooks(nil)
 
 	logger = kitlog.With(logger, "module", "server")
 	logger.Log("msg", "creating server")
 
-	twirpHandler := encoder.NewEncoderServer(enc, hooks)
+	//twirpHandler := encoder.NewEncoderServer(enc, hooks)
 
 	// multiplex twirp handler into a mux with our other handlers
 	mux := http.NewServeMux()
-	mux.Handle(encoder.EncoderPathPrefix, twirpHandler)
+	//mux.Handle(encoder.EncoderPathPrefix, twirpHandler)
 	mux.HandleFunc("/pulse", PulseHandler)
 	mux.Handle("/metrics", promhttp.Handler())
 
@@ -91,11 +88,9 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 
 	// return the instantiated server
 	return &Server{
-		srv:     srv,
-		encoder: enc,
-		db:      db,
-		mqtt:    mqttClient,
-		logger:  kitlog.With(logger, "module", "server"),
+		srv:    srv,
+		db:     db,
+		logger: kitlog.With(logger, "module", "server"),
 	}
 }
 
@@ -119,10 +114,10 @@ func (s *Server) Start() error {
 	}
 
 	// start the encoder RPC component - this creates all mqtt subscriptions
-	err = s.encoder.(system.Startable).Start()
-	if err != nil {
-		return errors.Wrap(err, "failed to start encoder")
-	}
+	//err = s.encoder.(system.Startable).Start()
+	//if err != nil {
+	//return errors.Wrap(err, "failed to start encoder")
+	//}
 
 	// add signal handling stuff to shutdown gracefully
 	stopChan := make(chan os.Signal)
@@ -145,7 +140,7 @@ func (s *Server) Stop() error {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFn()
 
-	err = s.db.(system.Stoppable).Stop()
+	err := s.db.(system.Stoppable).Stop()
 	if err != nil {
 		return err
 	}

@@ -1,9 +1,11 @@
 package tasks
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/thingful/iotdevicereg/pkg/logger"
 	"github.com/thingful/iotdevicereg/pkg/postgres"
@@ -63,9 +65,9 @@ takes as parameters: the number of steps to rollback (default 1), or a
 boolean flag (--all) indicating we should rollback all migrations. The
 default is to simply rollback one migration.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		datasource, err := GetFromEnv(DatabaseURLKey)
-		if err != nil {
-			return err
+		connStr := viper.GetString("database_url")
+		if connStr == "" {
+			return errors.New("Missing required environment variable: $DEVICEREG_DATABASE_URL")
 		}
 
 		steps, err := cmd.Flags().GetInt("steps")
@@ -80,7 +82,7 @@ default is to simply rollback one migration.`,
 
 		logger := logger.NewLogger()
 
-		db, err := postgres.Open(datasource)
+		db, err := postgres.Open(connStr)
 		if err != nil {
 			return err
 		}
@@ -102,9 +104,9 @@ once deployed the server automatically attempts to run all up migrations on
 boot.
 	`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		connStr, err := GetFromEnv(DatabaseURLKey)
-		if err != nil {
-			return err
+		connStr := viper.GetString("database_url")
+		if connStr == "" {
+			return errors.New("Missing required environment variable: $DEVICEREG_DATABASE_URL")
 		}
 
 		logger := logger.NewLogger()
