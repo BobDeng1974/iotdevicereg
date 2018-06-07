@@ -7,57 +7,50 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Device is a type used when reading data back from the DB.
+// User is our exported local type that allows us to maniuplate User records
+// stored in the database. Represents an individual DECODE user. A single User
+// may register multiple devices.
+type User struct {
+	ID         int    `db:"id"`
+	UID        string `db:"uid"`
+	PrivateKey string `db:"private_key"`
+	PublicKey  string `db:"public_key"`
+}
+
+// Device is our exported local type that allows us to maniuplate Device records
+// that are stored in the DB. Represents an individual device that may be
+// registered. A single user may register multiple devices.
 type Device struct {
 	ID          int     `db:"id"`
-	Broker      string  `db:"broker"`
-	Topic       string  `db:"topic"`
+	Token       string  `db:"token"`
 	PrivateKey  string  `db:"private_key"`
-	UserUID     string  `db:"user_uid"`
+	PublicKey   string  `db:"public_key"`
 	Longitude   float64 `db:"longitude"`
 	Latitude    float64 `db:"latitude"`
 	Disposition string  `db:"disposition"`
 
-	Streams []*Stream
-}
-
-// Stream is a type used when reading data back from the DB, and when creating a
-// stream. It contains a public key field used when reading data, and for
-// creating a new stream has an associated Device instance.
-type Stream struct {
-	PublicKey string `db:"public_key"`
-
-	Device *Device
+	User *User
 }
 
 // DB is our interface to Postgres. Exposes methods for inserting a new Device
 // (and associated Stream), listing all Devices, getting an individual Device,
 // and deleting a Stream
 type DB interface {
-	// CreateStream takes as input a pointer to an instantiated Stream instance
-	// which must have a an associated Device. We upsert the Device, then attempt
-	// to insert the Stream. Returns a string id for the inserted Stream or an
-	// error if any failure happens.
-	//CreateStream(stream *Stream) (string, error)
+	// RegisterDevice takes as input a pointer to an instantiated Device instance
+	// populated from the incoming public ClaimDeviceRequest message. We persist
+	// the associated user into the DB if they aren't already registered, and then
+	// attempt to persist the Device. Attempting to register an already registered
+	// device will return an error.
+	//
+	// TODO: what should we do if the device is
+	// already registered by the same user? what should we do if the device is
+	// already registered for another user?
+	RegisterDevice(device *Device) (*Device, error)
 
-	// DeleteStream takes as input a string representing the id of a previously
-	// stored stream, and attempts to delete the associated stream from the
-	// underlying database. If this stream is the last stream associated with a
-	// device then the device record is also deleted. We return a Device instance
-	// as we need to pass back out the broker and topic so that we can also
-	// unsubscribe from the MQTT topic.
-	//DeleteStream(id string) (*Device, error)
-
-	// GetDevices returns a slice containing all Devices currently stored in the
-	// system. We know we have a maximum limit here of around 25 devices, so we
-	// don't need to worry about this being an excessively large dataset. Note we
-	// do not load all Streams here, we just return the device.
-	//GetDevices() ([]*Device, error)
-
-	// GetDevice returns a single Device with all associated Streams on being given
-	// the devices unique token. This is used on boot to create MQTT subscriptions
-	// for all Streams.
-	//GetDevice(token string) (*Device, error)
+	// DeleteDevice attempts to delete a device identified by its token and the
+	// public key of the owning user. If after deleting a device successfully the
+	// user has no remaining registered devices, we also delete the user record.
+	DeleteDevice(token, publicKey string) error
 
 	// MigrateUp is a helper method that attempts to run all up migrations against
 	// the underlying Postgres DB or returns an error.
@@ -122,279 +115,149 @@ func (d *db) Stop() error {
 	return d.DB.Close()
 }
 
-// CreateStream attempts to insert records into the database for the given
-// Stream object. Returns a string containing the ID of the created stream if
-// successful or an error if any data constraint is violated, or any other error
-// occurs.
-//func (d *db) CreateStream(stream *Stream) (_ string, err error) {
-//	// device upsert sql - note we encrypt the private key using postgres native
-//	// symmetric encryption scheme
-//	sql := `INSERT INTO devices
-//		(broker, topic, private_key, user_uid, longitude, latitude, disposition)
-//	VALUES (:broker, :topic, pgp_sym_encrypt(:private_key, :encryption_password),
-//		  :user_uid, :longitude, :latitude, :disposition)
-//	ON CONFLICT (topic) DO UPDATE
-//	SET broker = EXCLUDED.broker,
-//			longitude = EXCLUDED.longitude,
-//			latitude = EXCLUDED.latitude,
-//			disposition = EXCLUDED.disposition
-//	RETURNING id`
-//
-//	mapArgs := map[string]interface{}{
-//		"broker":              stream.Device.Broker,
-//		"topic":               stream.Device.Topic,
-//		"private_key":         stream.Device.PrivateKey,
-//		"user_uid":            stream.Device.UserUID,
-//		"longitude":           stream.Device.Longitude,
-//		"latitude":            stream.Device.Latitude,
-//		"disposition":         stream.Device.Disposition,
-//		"encryption_password": d.encryptionPassword,
-//	}
-//
-//	tx, err := BeginTX(d.DB)
-//	if err != nil {
-//		return "", errors.Wrap(err, "failed to start transaction when inserting device")
-//	}
-//
-//	defer func() {
-//		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-//			err = cerr
-//		}
-//	}()
-//
-//	var deviceID int
-//
-//	// we use a Get for the upsert so we get back the device id
-//	err = tx.Get(&deviceID, sql, mapArgs)
-//	if err != nil {
-//		return "", errors.Wrap(err, "failed to upsert device")
-//	}
-//
-//	// streams insert sql - again worth noting here we encrypt the public key using
-//	// postgres native pgcrypto symmetric encryption, but also store a hash of the
-//	// public key allowing us to enforce the uniqueness index on the table without
-//	// having the unencrypted key written to the disk.
-//	sql = `INSERT INTO streams
-//		(device_id, public_key, public_key_hash)
-//	VALUES (
-//		:device_id,
-//		pgp_sym_encrypt(:public_key, :encryption_password),
-//		digest(:public_key, 'sha256')
-//	)
-//	RETURNING id`
-//
-//	mapArgs = map[string]interface{}{
-//		"device_id":           deviceID,
-//		"public_key":          stream.PublicKey,
-//		"encryption_password": d.encryptionPassword,
-//	}
-//
-//	var streamID int
-//
-//	// again use a Get to get back the stream's id
-//	err = tx.Get(&streamID, sql, mapArgs)
-//	if err != nil {
-//		return "", errors.Wrap(err, "failed to insert stream")
-//	}
-//
-//	id, err := d.hashid.Encode([]int{streamID})
-//	if err != nil {
-//		return "", errors.Wrap(err, "failed to hash new stream ID")
-//	}
-//
-//	return id, err
-//}
-//
-//// DeleteStream deletes a stream identified by the given id string. If this
-//// stream is the last one associated with a device, then the device record is
-//// also deleted. We return a Device object purely so we can pass back out the
-//// broker and topic allowing us to unsubscribe.V
-//func (d *db) DeleteStream(id string) (_ *Device, err error) {
-//	sql := `DELETE FROM streams WHERE id = :id
-//		RETURNING device_id`
-//
-//	streamIDs, err := d.hashid.DecodeWithError(id)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to decode hashed id")
-//	}
-//
-//	mapArgs := map[string]interface{}{
-//		"id": streamIDs[0],
-//	}
-//
-//	tx, err := BeginTX(d.DB)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to start transaction when deleting stream")
-//	}
-//
-//	defer func() {
-//		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-//			err = cerr
-//		}
-//	}()
-//
-//	var deviceID int
-//
-//	// again use a Get to run the delete so we get back the device's id
-//	err = tx.Get(&deviceID, sql, mapArgs)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to delete stream")
-//	}
-//
-//	// now we count streams for that device id, and if no more we should also
-//	// delete the device and unsubscribe from its topic
-//	sql = `SELECT COUNT(*) FROM streams
-//		WHERE device_id = :device_id`
-//
-//	mapArgs = map[string]interface{}{
-//		"device_id": deviceID,
-//	}
-//
-//	var streamCount int
-//
-//	// again use a Get to get the count
-//	err = tx.Get(&streamCount, sql, mapArgs)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to count streams")
-//	}
-//
-//	if streamCount == 0 {
-//		// delete the device too
-//		sql = `DELETE FROM devices WHERE id = :id
-//			RETURNING broker, topic`
-//
-//		mapArgs = map[string]interface{}{
-//			"id": deviceID,
-//		}
-//
-//		var device Device
-//
-//		err = tx.Get(&device, sql, mapArgs)
-//		if err != nil {
-//			return nil, errors.Wrap(err, "failed to delete device")
-//		}
-//
-//		return &device, nil
-//	}
-//
-//	return nil, nil
-//}
-//
-//// GetDevices returns a slice of pointers to Device instances. We don't worry
-//// about pagination here as we have a maximum number of devices of approximately
-//// 25. Note we do not load all streams for these devices.
-//func (d *db) GetDevices() ([]*Device, error) {
-//	sql := `SELECT id, broker, topic, pgp_sym_decrypt(private_key, :encryption_password) AS private_key
-//		FROM devices`
-//
-//	mapArgs := map[string]interface{}{
-//		"encryption_password": d.encryptionPassword,
-//	}
-//
-//	tx, err := BeginTX(d.DB)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to begin transaction")
-//	}
-//
-//	defer func() {
-//		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-//			err = cerr
-//		}
-//	}()
-//
-//	devices := []*Device{}
-//
-//	mapper := func(rows *sqlx.Rows) error {
-//		for rows.Next() {
-//			var d Device
-//
-//			err = rows.StructScan(&d)
-//			if err != nil {
-//				return errors.Wrap(err, "failed to scan row into Device struct")
-//			}
-//
-//			devices = append(devices, &d)
-//		}
-//
-//		return nil
-//	}
-//
-//	err = tx.Map(sql, mapArgs, mapper)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to select device rows from database")
-//	}
-//
-//	return devices, nil
-//}
-//
-//// GetDevice returns a single device identified by topic, including all streams
-//// for that device. This is used to set up subscriptions for existing records on
-//// application start.
-//func (d *db) GetDevice(topic string) (_ *Device, err error) {
-//	sql := `SELECT id, broker, topic, pgp_sym_decrypt(private_key, :encryption_password) AS private_key,
-//	  user_uid, longitude, latitude, disposition
-//		FROM devices
-//		WHERE topic = :topic`
-//
-//	mapArgs := map[string]interface{}{
-//		"encryption_password": d.encryptionPassword,
-//		"topic":               topic,
-//	}
-//
-//	tx, err := BeginTX(d.DB)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to begin transaction")
-//	}
-//
-//	defer func() {
-//		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-//			err = cerr
-//		}
-//	}()
-//
-//	var device Device
-//	err = tx.Get(&device, sql, mapArgs)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to load device")
-//	}
-//
-//	// now load streams
-//	sql = `SELECT pgp_sym_decrypt(public_key, :encryption_password) AS public_key
-//		FROM streams
-//		WHERE device_id = :device_id`
-//
-//	mapArgs = map[string]interface{}{
-//		"encryption_password": d.encryptionPassword,
-//		"device_id":           device.ID,
-//	}
-//
-//	streams := []*Stream{}
-//
-//	mapper := func(rows *sqlx.Rows) error {
-//
-//		for rows.Next() {
-//			var s Stream
-//
-//			err = rows.StructScan(&s)
-//			if err != nil {
-//				return errors.Wrap(err, "failed to scan stream row into struct")
-//			}
-//
-//			streams = append(streams, &s)
-//		}
-//
-//		return nil
-//	}
-//
-//	err = tx.Map(sql, mapArgs, mapper)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "failed to execute row mapper")
-//	}
-//
-//	device.Streams = streams
-//
-//	return &device, nil
-//}
+// RegisterDevice is our implementation of the RegisterDevice method defined in
+// our interface.
+func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
+	// user upsert sql, note we encrypt the private using postgres native symmetric
+	// encryption
+	sql := `INSERT INTO users
+		(uid, private_key, public_key)
+		VALUES
+			(:uid,
+			 pgp_sym_encrypt(:private_key, :encryption_password),
+			 :public_key
+			)
+		ON CONFLICT (uid) DO UPDATE
+		SET updated_at = NOW()
+		RETURNING id`
+
+	mapArgs := map[string]interface{}{
+		"uid":                 device.User.UID,
+		"private_key":         device.User.PrivateKey,
+		"public_key":          device.User.PublicKey,
+		"encryption_password": d.encryptionPassword,
+	}
+
+	tx, err := BeginTX(d.DB)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to start transaction when inserting device")
+	}
+
+	defer func() {
+		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	var userID int
+
+	// we use a Get for the upsert so we get back the user id
+	err = tx.Get(&userID, sql, mapArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to upsert user")
+	}
+
+	// now attempt to insert the device
+	sql = `INSERT INTO devices
+			(token, user_id, private_key, public_key, longitude, latitude, disposition)
+		VALUES (
+			:token,
+			:user_id,
+			pgp_sym_encrypt(:private_key, :encryption_password),
+			:public_key,
+			:longitude,
+			:latitude,
+			:disposition
+	)`
+
+	mapArgs = map[string]interface{}{
+		"token":               device.Token,
+		"user_id":             userID,
+		"private_key":         device.PrivateKey,
+		"public_key":          device.PublicKey,
+		"longitude":           device.Longitude,
+		"latitude":            device.Latitude,
+		"disposition":         device.Disposition,
+		"encryption_password": d.encryptionPassword,
+	}
+
+	err = tx.Exec(sql, mapArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to insert device")
+	}
+
+	return &Device{
+		PublicKey: device.PublicKey,
+		User: &User{
+			PrivateKey: device.User.PrivateKey,
+			PublicKey:  device.User.PublicKey,
+		},
+	}, err
+}
+
+// DeleteDevice finds the device identified by the given token, and deletes it
+// from the database. We also delete the associated user if they have no other
+// devices currently registered in the database.
+func (d *db) DeleteDevice(token, publicKey string) (err error) {
+	sql := `DELETE FROM devices d
+		USING users u
+		WHERE u.id = d.user_id
+		AND d.token = :token
+		AND u.public_key = :public_key
+		RETURNING u.id`
+
+	mapArgs := map[string]interface{}{
+		"token":      token,
+		"public_key": publicKey,
+	}
+
+	tx, err := BeginTX(d.DB)
+	if err != nil {
+		return errors.Wrap(err, "failed to start transaction when deleting device")
+	}
+
+	defer func() {
+		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
+			err = cerr
+		}
+	}()
+
+	var userID int
+
+	err = tx.Get(&userID, sql, mapArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete device")
+	}
+
+	// now count devices for the user
+	sql = `SELECT COUNT(*) FROM devices WHERE user_id = :user_id`
+
+	mapArgs = map[string]interface{}{
+		"user_id": userID,
+	}
+
+	var deviceCount int
+
+	err = tx.Get(&deviceCount, sql, mapArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to count remaining devices")
+	}
+
+	if deviceCount == 0 {
+		sql = `DELETE FROM users WHERE id = :id`
+
+		mapArgs = map[string]interface{}{
+			"id": userID,
+		}
+
+		err = tx.Exec(sql, mapArgs)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete user")
+		}
+	}
+
+	return nil
+}
 
 // MigrateUp is a convenience function to run all up migrations in the context
 // of an instantiated DB instance.
