@@ -28,6 +28,10 @@ type Transactor interface {
 	// Map executes an sqlx.Queryx call and pushes the results row by row to the
 	// given RowMapper function.
 	Map(sql string, args interface{}, rm RowMapper) error
+
+	// Exec runs an sql statement against the DB where we don't care about getting
+	// any value back. Returns an error on any failure.
+	Exec(sql string, args interface{}) error
 }
 
 // transactor is the private type that implements the Transactor interface
@@ -121,6 +125,22 @@ func (t *transactor) Map(sql string, args interface{}, rm RowMapper) (err error)
 	}
 
 	return err
+}
+
+// Exec executes the given sql statement with the given args, attempting to
+// normalize to handle named or non-named statements.
+func (t *transactor) Exec(sql string, args interface{}) error {
+	nsql, nargs, err := t.normalizeSql(sql, args)
+	if err != nil {
+		return t.rollback(err)
+	}
+
+	_, err = t.tx.Exec(nsql, nargs...)
+	if err != nil {
+		return t.rollback(err)
+	}
+
+	return nil
 }
 
 // normalizeSql is an internal function that converts sql and args into a
