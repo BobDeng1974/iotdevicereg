@@ -5,6 +5,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
+
+	"github.com/thingful/iotdevicereg/pkg/crypto"
 )
 
 // User is our exported local type that allows us to maniuplate User records
@@ -129,12 +131,17 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 			)
 		ON CONFLICT (uid) DO UPDATE
 		SET updated_at = NOW()
-		RETURNING id`
+		RETURNING id, public_key, pgp_sym_decrypt(private_key, :encryption_password) AS private_key`
+
+	userKeyPair, err := crypto.NewKeyPair()
+	if err != nil {
+		return nil, err
+	}
 
 	mapArgs := map[string]interface{}{
 		"uid":                 device.User.UID,
-		"private_key":         device.User.PrivateKey,
-		"public_key":          device.User.PublicKey,
+		"private_key":         userKeyPair.PrivateKey,
+		"public_key":          userKeyPair.PublicKey,
 		"encryption_password": d.encryptionPassword,
 	}
 
@@ -149,10 +156,10 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 		}
 	}()
 
-	var userID int
+	var user User
 
 	// we use a Get for the upsert so we get back the user id
-	err = tx.Get(&userID, sql, mapArgs)
+	err = tx.Get(&user, sql, mapArgs)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to upsert user")
 	}
@@ -170,11 +177,16 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 			:disposition
 	)`
 
+	deviceKeyPair, err := crypto.NewKeyPair()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to generate device key pair")
+	}
+
 	mapArgs = map[string]interface{}{
 		"token":               device.Token,
-		"user_id":             userID,
-		"private_key":         device.PrivateKey,
-		"public_key":          device.PublicKey,
+		"user_id":             user.ID,
+		"private_key":         deviceKeyPair.PrivateKey,
+		"public_key":          deviceKeyPair.PublicKey,
 		"longitude":           device.Longitude,
 		"latitude":            device.Latitude,
 		"disposition":         device.Disposition,
@@ -187,10 +199,10 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 	}
 
 	return &Device{
-		PublicKey: device.PublicKey,
+		PublicKey: deviceKeyPair.PublicKey,
 		User: &User{
-			PrivateKey: device.User.PrivateKey,
-			PublicKey:  device.User.PublicKey,
+			PrivateKey: user.PrivateKey,
+			PublicKey:  user.PublicKey,
 		},
 	}, err
 }

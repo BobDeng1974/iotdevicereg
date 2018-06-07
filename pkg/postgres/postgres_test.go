@@ -65,24 +65,21 @@ func (s *PostgresSuite) TearDownTest() {
 }
 
 func (s *PostgresSuite) TestRoundTrip() {
-	device, err := s.db.RegisterDevice(&postgres.Device{
+	device1, err := s.db.RegisterDevice(&postgres.Device{
 		Token:       "abc123",
-		PrivateKey:  "d_privkey",
-		PublicKey:   "d_pubkey",
 		Longitude:   2.3,
 		Latitude:    23.3,
 		Disposition: "indoor",
 		User: &postgres.User{
-			UID:        "alice",
-			PrivateKey: "u_privkey",
-			PublicKey:  "u_pubkey",
+			UID: "alice",
 		},
 	})
 
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "d_pubkey", device.PublicKey)
-	assert.Equal(s.T(), "u_privkey", device.User.PrivateKey)
-	assert.Equal(s.T(), "u_pubkey", device.User.PublicKey)
+	assert.NotEqual(s.T(), "", device1.PublicKey)
+	assert.NotEqual(s.T(), "", device1.User.PrivateKey)
+	assert.NotEqual(s.T(), "", device1.User.PublicKey)
+	assert.NotEqual(s.T(), device1.PublicKey, device1.User.PublicKey)
 
 	var count int
 
@@ -94,21 +91,20 @@ func (s *PostgresSuite) TestRoundTrip() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 1, count)
 
-	_, err = s.db.RegisterDevice(&postgres.Device{
+	device2, err := s.db.RegisterDevice(&postgres.Device{
 		Token:       "hij567",
-		PrivateKey:  "d_privkey",
-		PublicKey:   "d_pubkey",
 		Longitude:   2.3,
 		Latitude:    23.3,
 		Disposition: "indoor",
 		User: &postgres.User{
-			UID:        "alice",
-			PrivateKey: "u_privkey",
-			PublicKey:  "u_pubkey",
+			UID: "alice",
 		},
 	})
 
 	assert.Nil(s.T(), err)
+	assert.NotEqual(s.T(), "", device2.PublicKey)
+	assert.NotEqual(s.T(), "", device2.User.PrivateKey)
+	assert.NotEqual(s.T(), "", device2.User.PublicKey)
 
 	err = s.rawDb.Get(&count, `SELECT COUNT(*) FROM users`)
 	assert.Nil(s.T(), err)
@@ -118,7 +114,7 @@ func (s *PostgresSuite) TestRoundTrip() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 2, count)
 
-	err = s.db.DeleteDevice("abc123", "u_pubkey")
+	err = s.db.DeleteDevice("abc123", device1.User.PublicKey)
 	assert.Nil(s.T(), err)
 
 	err = s.rawDb.Get(&count, `SELECT COUNT(*) FROM users`)
@@ -129,7 +125,7 @@ func (s *PostgresSuite) TestRoundTrip() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 1, count)
 
-	err = s.db.DeleteDevice("hij567", "u_pubkey")
+	err = s.db.DeleteDevice("hij567", device2.User.PublicKey)
 	assert.Nil(s.T(), err)
 
 	err = s.rawDb.Get(&count, `SELECT COUNT(*) FROM users`)
@@ -144,15 +140,11 @@ func (s *PostgresSuite) TestRoundTrip() {
 func (s *PostgresSuite) TestDuplicateTokenError() {
 	_, err := s.db.RegisterDevice(&postgres.Device{
 		Token:       "abc123",
-		PrivateKey:  "d_privkey",
-		PublicKey:   "d_pubkey",
 		Longitude:   2.3,
 		Latitude:    23.3,
 		Disposition: "indoor",
 		User: &postgres.User{
-			UID:        "alice",
-			PrivateKey: "u_privkey",
-			PublicKey:  "u_pubkey",
+			UID: "alice",
 		},
 	})
 
@@ -160,15 +152,11 @@ func (s *PostgresSuite) TestDuplicateTokenError() {
 
 	_, err = s.db.RegisterDevice(&postgres.Device{
 		Token:       "abc123",
-		PrivateKey:  "d_privkey",
-		PublicKey:   "d_pubkey",
 		Longitude:   2.3,
 		Latitude:    23.3,
 		Disposition: "indoor",
 		User: &postgres.User{
-			UID:        "alice",
-			PrivateKey: "u_privkey",
-			PublicKey:  "u_pubkey",
+			UID: "alice",
 		},
 	})
 
@@ -178,15 +166,11 @@ func (s *PostgresSuite) TestDuplicateTokenError() {
 func (s *PostgresSuite) TestErrorDeletingDevices() {
 	_, err := s.db.RegisterDevice(&postgres.Device{
 		Token:       "abc123",
-		PrivateKey:  "d_privkey",
-		PublicKey:   "d_pubkey",
 		Longitude:   2.3,
 		Latitude:    23.3,
 		Disposition: "indoor",
 		User: &postgres.User{
-			UID:        "alice",
-			PrivateKey: "u_privkey",
-			PublicKey:  "u_pubkey",
+			UID: "alice",
 		},
 	})
 	assert.Nil(s.T(), err)
