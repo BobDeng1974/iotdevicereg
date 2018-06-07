@@ -231,9 +231,19 @@
 
 [[projects]]
   name = "github.com/stretchr/testify"
-  packages = ["assert"]
+  packages = [
+    "assert",
+    "require",
+    "suite"
+  ]
   revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
   version = "v1.2.1"
+
+[[projects]]
+  name = "github.com/thingful/iotencoder"
+  packages = ["pkg/system"]
+  revision = "f8e20aebd8f07627c89b2954b9509b340c732eba"
+  version = "v0.0.4"
 
 [[projects]]
   branch = "master"
@@ -279,6 +289,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7bb28151fd7d31f12e3fc5745f3ae9335416c656bba415c818ab208d339c6ae7"
+  inputs-digest = "35b2c3a8a32167f74fa1b2c1f86151d8d9cee02be301f43e3b3450c6063a445a"
   solver-name = "gps-cdcl"
   solver-version = 1
