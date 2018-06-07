@@ -10,3 +10,6 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_uid_idx
   ON users (uid);
+
+CREATE INDEX IF NOT EXISTS users_public_key_idx
+  ON users (public_key);
