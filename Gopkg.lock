@@ -253,10 +253,10 @@
   version = "v0.0.4"
 
 [[projects]]
-  branch = "master"
   name = "github.com/thingful/twirp-devicereg-go"
   packages = ["."]
-  revision = "e0be22a9aaf1eb6da10fa80301709a407ad10cfc"
+  revision = "7b4c427a192253524825cf480ef5b32e39909163"
+  version = "v0.0.1"
 
 [[projects]]
   name = "github.com/thingful/twirp-encoder-go"
@@ -302,6 +302,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d8dfa27405b43fa7a3d62aa809d85f9323f48932170efa2da752a4bb949debae"
+  inputs-digest = "ed33b97e60d1d46f3089d4734b5a500c253644b0953317b4cb13f40781f1d2e8"
   solver-name = "gps-cdcl"
   solver-version = 1
