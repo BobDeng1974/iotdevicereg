@@ -6,11 +6,13 @@ import (
 	"testing"
 
 	"github.com/thingful/twirp-devicereg-go"
+	encoder "github.com/thingful/twirp-encoder-go"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
+	"github.com/thingful/iotdevicereg/pkg/mocks"
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 	"github.com/thingful/iotdevicereg/pkg/rpc"
 	"github.com/thingful/iotdevicereg/pkg/system"
@@ -19,14 +21,16 @@ import (
 type DeviceRegistrationSuite struct {
 	suite.Suite
 
-	db     postgres.DB
-	logger kitlog.Logger
+	db            postgres.DB
+	logger        kitlog.Logger
+	encoderClient encoder.Encoder
 }
 
 func (s *DeviceRegistrationSuite) SetupTest() {
 	connStr := os.Getenv("DEVICEREG_DATABASE_URL")
 
 	s.logger = kitlog.NewNopLogger()
+	s.encoderClient = new(mocks.Encoder)
 
 	s.db = postgres.NewDB(
 		&postgres.Config{
@@ -60,7 +64,7 @@ func (s *DeviceRegistrationSuite) TearDownTest() {
 }
 
 func (s *DeviceRegistrationSuite) TestFullLifecycle() {
-	dr := rpc.NewDeviceReg(s.db, s.logger)
+	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {
@@ -91,7 +95,7 @@ func (s *DeviceRegistrationSuite) TestFullLifecycle() {
 }
 
 func (s *DeviceRegistrationSuite) TestInvalidClaimRequests() {
-	dr := rpc.NewDeviceReg(s.db, s.logger)
+	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {
@@ -233,7 +237,7 @@ func (s *DeviceRegistrationSuite) TestInvalidClaimRequests() {
 }
 
 func (s *DeviceRegistrationSuite) TestInvalidRevokeRequests() {
-	dr := rpc.NewDeviceReg(s.db, s.logger)
+	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {

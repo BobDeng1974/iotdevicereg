@@ -8,26 +8,29 @@ import (
 
 	kitlog "github.com/go-kit/kit/log"
 	devicereg "github.com/thingful/twirp-devicereg-go"
+	encoder "github.com/thingful/twirp-encoder-go"
 
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 )
 
 type deviceRegImpl struct {
-	logger  kitlog.Logger
-	db      postgres.DB
-	verbose bool
+	logger        kitlog.Logger
+	db            postgres.DB
+	encoderClient encoder.Encoder
+	verbose       bool
 }
 
 // NewDeviceReg constructs a new DeviceRegistration instance. We pass in the
 // components needed for this component to operate.
-func NewDeviceReg(db postgres.DB, logger kitlog.Logger) devicereg.DeviceRegistration {
+func NewDeviceReg(db postgres.DB, encoderClient encoder.Encoder, logger kitlog.Logger) devicereg.DeviceRegistration {
 	logger = kitlog.With(logger, "module", "rpc")
 	logger.Log("msg", "creating devicereg")
 
 	return &deviceRegImpl{
-		db:      db,
-		logger:  logger,
-		verbose: true,
+		db:            db,
+		encoderClient: encoderClient,
+		logger:        logger,
+		verbose:       true,
 	}
 }
 

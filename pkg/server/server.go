@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	devicereg "github.com/thingful/twirp-devicereg-go"
+	encoder "github.com/thingful/twirp-encoder-go"
 
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 	"github.com/thingful/iotdevicereg/pkg/rpc"
@@ -53,19 +54,14 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 		EncryptionPassword: config.EncryptionPassword,
 	}, logger)
 
-	//ds := datastore.NewDatastoreProtobufClient(
-	//	config.DatastoreAddr,
-	//	&http.Client{
-	//		Timeout: time.Second * 10,
-	//	},
-	//)
+	encoderClient := encoder.NewEncoderProtobufClient(
+		config.EncoderAddr,
+		&http.Client{
+			Timeout: time.Second * 10,
+		},
+	)
 
-	deviceReg := rpc.NewDeviceReg(db, logger)
-
-	//enc := rpc.NewEncoder(&rpc.Config{
-	//	DB:      db,
-	//	Verbose: config.Verbose,
-	//}, logger)
+	deviceReg := rpc.NewDeviceReg(db, encoderClient, logger)
 
 	hooks := twrpprom.NewServerHooks(nil)
 
