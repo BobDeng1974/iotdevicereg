@@ -252,6 +252,12 @@
   revision = "e0be22a9aaf1eb6da10fa80301709a407ad10cfc"
 
 [[projects]]
+  name = "github.com/thingful/twirp-encoder-go"
+  packages = ["."]
+  revision = "3234a0f153613cf417a81752c7685bb23aaa294f"
+  version = "v0.0.1"
+
+[[projects]]
   name = "github.com/twitchtv/twirp"
   packages = [
     ".",
@@ -289,6 +295,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "35b2c3a8a32167f74fa1b2c1f86151d8d9cee02be301f43e3b3450c6063a445a"
+  inputs-digest = "3c5243dfd24ad188f44570f879dc45314c0e89b6d80c2072d5750aac94bce561"
   solver-name = "gps-cdcl"
   solver-version = 1
