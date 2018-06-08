@@ -6,6 +6,8 @@
 // sql/20180606150206_add_devices.up.sql
 // sql/20180607111841_add_updated_at_to_users.down.sql
 // sql/20180607111841_add_updated_at_to_users.up.sql
+// sql/20180608141559_add_streams.down.sql
+// sql/20180608141559_add_streams.up.sql
 package migrations
 
 import (
@@ -191,6 +193,46 @@ func _20180607111841_add_updated_at_to_usersUpSql() (*asset, error) {
 	return a, nil
 }
 
+var __20180608141559_add_streamsDownSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x72\x09\xf2\x0f\x50\x08\x71\x74\xf2\x71\x55\x28\x2e\x29\x4a\x4d\xcc\x2d\x56\x70\x76\x0c\x76\x76\x74\x71\xb5\x06\x04\x00\x00\xff\xff\xa2\xef\x0c\xbb\x1b\x00\x00\x00")
+
+func _20180608141559_add_streamsDownSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__20180608141559_add_streamsDownSql,
+		"20180608141559_add_streams.down.sql",
+	)
+}
+
+func _20180608141559_add_streamsDownSql() (*asset, error) {
+	bytes, err := _20180608141559_add_streamsDownSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "20180608141559_add_streams.down.sql", size: 27, mode: os.FileMode(420), modTime: time.Unix(1528467575, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
+var __20180608141559_add_streamsUpSql = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x7c\xce\xb1\xce\x82\x30\x14\x05\xe0\xbd\x4f\x71\x46\x48\xfe\x37\xf8\xa7\x8a\x07\xd3\x58\x8b\xb6\x97\x04\x26\x62\x2c\x43\x07\x17\x11\xe3\xe3\x1b\x0c\x12\x07\xe2\x7c\xce\xfd\xee\x29\x3c\xb5\x10\xa2\x37\x96\x30\x25\x5c\x25\x60\x63\x82\x04\x0c\xf7\x5b\x7f\xbe\x0e\xc8\x14\x90\x22\x02\xbd\xd1\x16\x47\x6f\x0e\xda\xb7\xd8\xb3\xfd\x53\x40\xec\x1f\xe9\xd2\x77\x29\xc2\x38\xe1\x8e\xfe\x2d\xb8\xda\x5a\x78\x96\xf4\x74\x05\xc3\xdc\x1a\xb2\x14\xf3\xe9\x68\x4c\x11\xc2\x46\x96\xae\xca\xff\x95\x9a\xa7\x18\xb7\x65\xb3\x3e\xa5\x5b\xbe\x75\x29\x3e\x15\x50\xb9\x4f\x94\x2d\xd1\x17\x55\x3b\x73\xaa\x7f\x8b\xe3\x9a\x35\x4e\xca\x2b\x00\x00\xff\xff\xc9\xfd\xa4\xae\x1a\x01\x00\x00")
+
+func _20180608141559_add_streamsUpSqlBytes() ([]byte, error) {
+	return bindataRead(
+		__20180608141559_add_streamsUpSql,
+		"20180608141559_add_streams.up.sql",
+	)
+}
+
+func _20180608141559_add_streamsUpSql() (*asset, error) {
+	bytes, err := _20180608141559_add_streamsUpSqlBytes()
+	if err != nil {
+		return nil, err
+	}
+
+	info := bindataFileInfo{name: "20180608141559_add_streams.up.sql", size: 282, mode: os.FileMode(420), modTime: time.Unix(1528467559, 0)}
+	a := &asset{bytes: bytes, info: info}
+	return a, nil
+}
+
 // Asset loads and returns the asset for the given name.
 // It returns an error if the asset could not be found or
 // could not be loaded.
@@ -249,6 +291,8 @@ var _bindata = map[string]func() (*asset, error){
 	"20180606150206_add_devices.up.sql": _20180606150206_add_devicesUpSql,
 	"20180607111841_add_updated_at_to_users.down.sql": _20180607111841_add_updated_at_to_usersDownSql,
 	"20180607111841_add_updated_at_to_users.up.sql": _20180607111841_add_updated_at_to_usersUpSql,
+	"20180608141559_add_streams.down.sql": _20180608141559_add_streamsDownSql,
+	"20180608141559_add_streams.up.sql": _20180608141559_add_streamsUpSql,
 }
 
 // AssetDir returns the file names below a certain
@@ -297,6 +341,8 @@ var _bintree = &bintree{nil, map[string]*bintree{
 	"20180606150206_add_devices.up.sql": &bintree{_20180606150206_add_devicesUpSql, map[string]*bintree{}},
 	"20180607111841_add_updated_at_to_users.down.sql": &bintree{_20180607111841_add_updated_at_to_usersDownSql, map[string]*bintree{}},
 	"20180607111841_add_updated_at_to_users.up.sql": &bintree{_20180607111841_add_updated_at_to_usersUpSql, map[string]*bintree{}},
+	"20180608141559_add_streams.down.sql": &bintree{_20180608141559_add_streamsDownSql, map[string]*bintree{}},
+	"20180608141559_add_streams.up.sql": &bintree{_20180608141559_add_streamsUpSql, map[string]*bintree{}},
 }}
 
 // RestoreAsset restores an asset under the given directory
