@@ -57,6 +57,10 @@ type DB interface {
 	// MigrateUp is a helper method that attempts to run all up migrations against
 	// the underlying Postgres DB or returns an error.
 	MigrateUp() error
+
+	// MigrateDownAll is a helper method that attempts to run all down migrations
+	// against the underlying Postgres DB or returns an error.
+	MigrateDownAll() error
 }
 
 // Open is a helper function that takes as input a connection string for a DB,
@@ -275,4 +279,10 @@ func (d *db) DeleteDevice(token, publicKey string) (err error) {
 // of an instantiated DB instance.
 func (d *db) MigrateUp() error {
 	return MigrateUp(d.DB.DB, d.logger)
+}
+
+// MigrateDownAll is a convenience function to run all down migrations in the
+// context of an instantiated DB instance.
+func (d *db) MigrateDownAll() error {
+	return MigrateDownAll(d.DB.DB, d.logger)
 }
