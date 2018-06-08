@@ -59,7 +59,8 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 	//		Timeout: time.Second * 10,
 	//	},
 	//)
-	deviceReg := rpc.NewDeviceReg(logger)
+
+	deviceReg := rpc.NewDeviceReg(db, logger)
 
 	//enc := rpc.NewEncoder(&rpc.Config{
 	//	DB:      db,
