@@ -34,6 +34,15 @@ type Device struct {
 	User *User
 }
 
+// Stream is the local representation of a created stream for a Device. We keep
+// a reference here, so that we can later destroy the associated Stream.
+type Stream struct {
+	ID  int    `db:"id"`
+	UID string `db:"uid"`
+
+	Device *Device
+}
+
 // DB is our interface to Postgres. Exposes methods for inserting a new Device
 // (and associated Stream), listing all Devices, getting an individual Device,
 // and deleting a Stream
@@ -47,12 +56,17 @@ type DB interface {
 	// TODO: what should we do if the device is
 	// already registered by the same user? what should we do if the device is
 	// already registered for another user?
-	RegisterDevice(device *Device) (*Device, error)
+	RegisterDevice(tx *sqlx.Tx, device *Device) (*Device, error)
 
 	// DeleteDevice attempts to delete a device identified by its token and the
 	// public key of the owning user. If after deleting a device successfully the
 	// user has no remaining registered devices, we also delete the user record.
-	DeleteDevice(token, publicKey string) error
+	DeleteDevice(tx *sqlx.Tx, token, publicKey string) error
+
+	// CreateStream saves a new stream record into the local DB. These are objects
+	// that allow us to keep a handle on a created stream for a device such that we
+	// can later destroy all associated streams.
+	CreateStream(tx *sqlx.Tx, deviceID int, streamUID string) error
 
 	// MigrateUp is a helper method that attempts to run all up migrations against
 	// the underlying Postgres DB or returns an error.
@@ -61,6 +75,11 @@ type DB interface {
 	// MigrateDownAll is a helper method that attempts to run all down migrations
 	// against the underlying Postgres DB or returns an error.
 	MigrateDownAll() error
+
+	// BeginTX starts a new transaction and returns it to the caller. This is to
+	// allow us to properly coordinate writes to the DB only if calls to external
+	// processes succeed. Returns either a valid transactor instance or an error.
+	BeginTX() (*sqlx.Tx, error)
 }
 
 // Open is a helper function that takes as input a connection string for a DB,
@@ -123,7 +142,7 @@ func (d *db) Stop() error {
 
 // RegisterDevice is our implementation of the RegisterDevice method defined in
 // our interface.
-func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
+func (d *db) RegisterDevice(tx *sqlx.Tx, device *Device) (*Device, error) {
 	// user upsert sql, note we encrypt the private using postgres native symmetric
 	// encryption
 	sql := `INSERT INTO users
@@ -149,21 +168,15 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 		"encryption_password": d.encryptionPassword,
 	}
 
-	tx, err := BeginTX(d.DB)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start transaction when inserting device")
-	}
-
-	defer func() {
-		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-			err = cerr
-		}
-	}()
-
 	var user User
 
+	sql, args, err := tx.BindNamed(sql, mapArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to bind named query for upserting user")
+	}
+
 	// we use a Get for the upsert so we get back the user id
-	err = tx.Get(&user, sql, mapArgs)
+	err = tx.Get(&user, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to upsert user")
 	}
@@ -179,7 +192,8 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 			:longitude,
 			:latitude,
 			:disposition
-	)`
+		)
+		RETURNING id, public_key`
 
 	deviceKeyPair, err := crypto.NewKeyPair()
 	if err != nil {
@@ -197,24 +211,30 @@ func (d *db) RegisterDevice(device *Device) (_ *Device, err error) {
 		"encryption_password": d.encryptionPassword,
 	}
 
-	err = tx.Exec(sql, mapArgs)
+	sql, args, err = tx.BindNamed(sql, mapArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to bind named query when inserting device")
+	}
+
+	var dv Device
+
+	err = tx.Get(&dv, sql, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to insert device")
 	}
 
-	return &Device{
-		PublicKey: deviceKeyPair.PublicKey,
-		User: &User{
-			PrivateKey: user.PrivateKey,
-			PublicKey:  user.PublicKey,
-		},
-	}, err
+	dv.User = &User{
+		PrivateKey: user.PrivateKey,
+		PublicKey:  user.PublicKey,
+	}
+
+	return &dv, err
 }
 
 // DeleteDevice finds the device identified by the given token, and deletes it
 // from the database. We also delete the associated user if they have no other
 // devices currently registered in the database.
-func (d *db) DeleteDevice(token, publicKey string) (err error) {
+func (d *db) DeleteDevice(tx *sqlx.Tx, token, publicKey string) error {
 	sql := `DELETE FROM devices d
 		USING users u
 		WHERE u.id = d.user_id
@@ -227,20 +247,14 @@ func (d *db) DeleteDevice(token, publicKey string) (err error) {
 		"public_key": publicKey,
 	}
 
-	tx, err := BeginTX(d.DB)
-	if err != nil {
-		return errors.Wrap(err, "failed to start transaction when deleting device")
-	}
-
-	defer func() {
-		if cerr := tx.CommitOrRollback(); err == nil && cerr != nil {
-			err = cerr
-		}
-	}()
-
 	var userID int
 
-	err = tx.Get(&userID, sql, mapArgs)
+	sql, args, err := tx.BindNamed(sql, mapArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to bind named query to delete devices")
+	}
+
+	err = tx.Get(&userID, sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete device")
 	}
@@ -252,9 +266,14 @@ func (d *db) DeleteDevice(token, publicKey string) (err error) {
 		"user_id": userID,
 	}
 
+	sql, args, err = tx.BindNamed(sql, mapArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to bind named query to count devices")
+	}
+
 	var deviceCount int
 
-	err = tx.Get(&deviceCount, sql, mapArgs)
+	err = tx.Get(&deviceCount, sql, args...)
 	if err != nil {
 		return errors.Wrap(err, "failed to count remaining devices")
 	}
@@ -266,10 +285,29 @@ func (d *db) DeleteDevice(token, publicKey string) (err error) {
 			"id": userID,
 		}
 
-		err = tx.Exec(sql, mapArgs)
+		_, err = tx.NamedExec(sql, mapArgs)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete user")
 		}
+	}
+
+	return nil
+}
+
+// CreateStream now attempts to insert to the streams table the stream id we
+// received back from the encoder.
+func (d *db) CreateStream(tx *sqlx.Tx, deviceID int, streamUID string) error {
+	sql := `INSERT INTO streams (device_id, uid) VALUES
+		(:device_id, :uid)`
+
+	mapArgs := map[string]interface{}{
+		"device_id": deviceID,
+		"uid":       streamUID,
+	}
+
+	_, err := tx.NamedExec(sql, mapArgs)
+	if err != nil {
+		return errors.Wrap(err, "failed to insert stream")
 	}
 
 	return nil
@@ -285,4 +323,10 @@ func (d *db) MigrateUp() error {
 // context of an instantiated DB instance.
 func (d *db) MigrateDownAll() error {
 	return MigrateDownAll(d.DB.DB, d.logger)
+}
+
+// BeginTX simply wraps the BeginTX function in the context of the current DB
+// instance.
+func (d *db) BeginTX() (*sqlx.Tx, error) {
+	return d.DB.Beginx()
 }
