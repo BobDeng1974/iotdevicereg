@@ -2,13 +2,13 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"strings"
-
-	"github.com/twitchtv/twirp"
 
 	kitlog "github.com/go-kit/kit/log"
 	devicereg "github.com/thingful/twirp-devicereg-go"
 	encoder "github.com/thingful/twirp-encoder-go"
+	"github.com/twitchtv/twirp"
 
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 )
@@ -51,13 +51,52 @@ func (d *deviceRegImpl) Stop() error {
 // created some key pairs for the user and the device, and created a new
 // encrypted stream for the device on the encoder. THis service will maintain a
 // store of the generated keys.
-func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDeviceRequest) (*devicereg.ClaimDeviceResponse, error) {
+func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDeviceRequest) (_ *devicereg.ClaimDeviceResponse, err error) {
 	device, err := createValidDevice(req)
 	if err != nil {
 		return nil, err
 	}
 
-	device, err = d.db.RegisterDevice(device)
+	tx, err := d.db.BeginTX()
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		if cerr := tx.Commit(); cerr != nil {
+			err = twirp.InternalErrorWith(cerr)
+		}
+	}()
+
+	// insert the device in the context of the current transaction
+	device, err = d.db.RegisterDevice(tx, device)
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	// attempt to create the default stream - if this fails we can roll back the
+	// transaction
+	resp, err := d.encoderClient.CreateStream(ctx, &encoder.CreateStreamRequest{
+		BrokerAddress:      req.Broker,
+		DeviceTopic:        fmt.Sprintf("device/sck/%s/readings", req.DeviceToken),
+		DevicePrivateKey:   device.PrivateKey,
+		RecipientPublicKey: device.User.PublicKey,
+		UserUid:            req.UserUid,
+		Location: &encoder.CreateStreamRequest_Location{
+			Longitude: req.Location.Longitude,
+			Latitude:  req.Location.Latitude,
+		},
+		Disposition: encoder.CreateStreamRequest_Disposition(encoder.CreateStreamRequest_Disposition_value[req.Disposition.String()]),
+	})
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	err = d.db.CreateStream(tx, device.ID, resp.StreamUid)
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
@@ -66,25 +105,49 @@ func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDev
 		UserPrivateKey:  device.User.PrivateKey,
 		UserPublicKey:   device.User.PublicKey,
 		DevicePublicKey: device.PublicKey,
-	}, nil
+	}, err
 }
 
-// RevokeDevie is our implementation of the method defined on the
-// DeviceRegistration servie interface. Calling this causes the specified device
-// to be deleted, and the system will also call down to the encoder in order to
-// delete associated streams.
-func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeDeviceRequest) (*devicereg.RevokeDeviceResponse, error) {
-	err := validateRevokeRequest(req)
+// RevokeDevice is our implementation of the method defined on the
+// DeviceRegistration service interface. Calling this causes the specified
+// device to be deleted, and the system will also call down to the encoder in
+// order to delete associated streams.
+func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeDeviceRequest) (_ *devicereg.RevokeDeviceResponse, err error) {
+	err = validateRevokeRequest(req)
 	if err != nil {
 		return nil, err
 	}
 
-	err = d.db.DeleteDevice(req.DeviceToken, req.UserPublicKey)
+	tx, err := d.db.BeginTX()
 	if err != nil {
 		return nil, twirp.InternalErrorWith(err)
 	}
 
-	return &devicereg.RevokeDeviceResponse{}, nil
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+			return
+		}
+		if cerr := tx.Commit(); cerr != nil {
+			err = twirp.InternalErrorWith(cerr)
+		}
+	}()
+
+	streams, err := d.db.DeleteDevice(tx, req.DeviceToken, req.UserPublicKey)
+	if err != nil {
+		return nil, twirp.InternalErrorWith(err)
+	}
+
+	for _, stream := range streams {
+		_, err = d.encoderClient.DeleteStream(ctx, &encoder.DeleteStreamRequest{
+			StreamUid: stream.UID,
+		})
+		if err != nil {
+			return nil, twirp.InternalErrorWith(err)
+		}
+	}
+
+	return &devicereg.RevokeDeviceResponse{}, err
 }
 
 // createValidDevice both validates the incoming request, and returns an
@@ -92,6 +155,10 @@ func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeD
 func createValidDevice(req *devicereg.ClaimDeviceRequest) (*postgres.Device, error) {
 	if req.DeviceToken == "" {
 		return nil, twirp.RequiredArgumentError("device_token")
+	}
+
+	if req.Broker == "" {
+		return nil, twirp.RequiredArgumentError("broker")
 	}
 
 	if req.UserUid == "" {
