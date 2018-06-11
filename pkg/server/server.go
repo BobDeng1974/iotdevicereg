@@ -61,7 +61,11 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 		},
 	)
 
-	deviceReg := rpc.NewDeviceReg(db, encoderClient, logger)
+	deviceReg := rpc.NewDeviceReg(&rpc.Config{
+		DB:            db,
+		EncoderClient: encoderClient,
+		Verbose:       config.Verbose,
+	}, logger)
 
 	hooks := twrpprom.NewServerHooks(nil)
 
@@ -108,12 +112,6 @@ func (s *Server) Start() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to migrate the database")
 	}
-
-	// start the encoder RPC component - this creates all mqtt subscriptions
-	//err = s.encoder.(system.Startable).Start()
-	//if err != nil {
-	//return errors.Wrap(err, "failed to start encoder")
-	//}
 
 	// add signal handling stuff to shutdown gracefully
 	stopChan := make(chan os.Signal)

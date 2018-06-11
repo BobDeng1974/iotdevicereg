@@ -101,7 +101,12 @@ func (s *DeviceRegistrationSuite) TestFullLifecycle() {
 		nil,
 	)
 
-	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
+	dr := rpc.NewDeviceReg(&rpc.Config{
+		DB:            s.db,
+		EncoderClient: s.encoderClient,
+		Verbose:       true,
+	}, s.logger)
+
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {
@@ -152,7 +157,11 @@ func (s *DeviceRegistrationSuite) TestFullLifecycle() {
 }
 
 func (s *DeviceRegistrationSuite) TestInvalidClaimRequests() {
-	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
+	dr := rpc.NewDeviceReg(&rpc.Config{
+		DB:            s.db,
+		EncoderClient: s.encoderClient,
+		Verbose:       true,
+	}, s.logger)
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {
@@ -326,7 +335,11 @@ func (s *DeviceRegistrationSuite) TestInvalidRevokeRequests() {
 		nil,
 	)
 
-	dr := rpc.NewDeviceReg(s.db, s.encoderClient, s.logger)
+	dr := rpc.NewDeviceReg(&rpc.Config{
+		DB:            s.db,
+		EncoderClient: s.encoderClient,
+		Verbose:       true,
+	}, s.logger)
 	err := dr.(system.Startable).Start()
 	assert.Nil(s.T(), err, "starting devicereg")
 	defer func() {
