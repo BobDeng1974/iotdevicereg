@@ -32,7 +32,7 @@ being developed for DECODE which provide encryption and storage capabilities.
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		fmt.Printf("FATAL: %+v\n", err)
 		os.Exit(1)
 	}
 }
