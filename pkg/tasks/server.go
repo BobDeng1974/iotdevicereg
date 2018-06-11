@@ -13,13 +13,11 @@ import (
 func init() {
 	rootCmd.AddCommand(serverCmd)
 	serverCmd.Flags().StringP("addr", "a", "0.0.0.0:8080", "Address to which the HTTP server binds")
-	serverCmd.Flags().StringP("datastore", "d", "", "Address at which the datastore is listening")
-	serverCmd.Flags().IntP("hashidlength", "l", 8, "Minimum length of generated hashids")
+	serverCmd.Flags().StringP("encoder", "e", "", "Address at which the encoder is listening")
 	serverCmd.Flags().Bool("verbose", false, "Enable verbose output")
 
 	viper.BindPFlag("addr", serverCmd.Flags().Lookup("addr"))
-	viper.BindPFlag("datastore", serverCmd.Flags().Lookup("datastore"))
-	viper.BindPFlag("hashidlength", serverCmd.Flags().Lookup("hashidlength"))
+	viper.BindPFlag("encoder", serverCmd.Flags().Lookup("encoder"))
 	viper.BindPFlag("verbose", serverCmd.Flags().Lookup("verbose"))
 }
 
@@ -27,9 +25,10 @@ var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "Starts datastore listening for requests",
 	Long: `
-Starts our implementation of the DECODE datastore RPC interface, which is
-designed to expose a simple API to store and retrieve encrypted events coming
-from upstream IoT devices.
+Starts our implementation of the DECODE device registration RPC interface, which is
+designed to expose a simple API to claim and revoke ownership of devices, as well as
+eventually being able to create entitlements for owned devices which will allow data
+to be shared under certain conditions with specific parties.
 
 The server uses Twirp to expose both a JSON API along with a more performant
 Protocol Buffer API. The JSON API is not intended for use other than for
@@ -40,9 +39,9 @@ clients unable to use the Protocol Buffer API.`,
 			return errors.New("Must provide a bind address")
 		}
 
-		datastoreAddr := viper.GetString("datastore")
-		if datastoreAddr == "" {
-			return errors.New("Must provide datastore address")
+		encoderAddr := viper.GetString("encoder")
+		if encoderAddr == "" {
+			return errors.New("Must provide encoder address")
 		}
 
 		connStr := viper.GetString("database_url")
@@ -55,17 +54,13 @@ clients unable to use the Protocol Buffer API.`,
 			return errors.New("Missing required environment variable: $DEVICEREG_ENCRYPTION_PASSWORD")
 		}
 
-		hashidSalt := viper.GetString("hashid_salt")
-		if hashidSalt == "" {
-			return errors.New("Missing required environment variable: $DEVICEREG_HASHID_SALT")
-		}
-
 		logger := logger.NewLogger()
 
 		config := &server.Config{
 			ListenAddr:         addr,
 			ConnStr:            connStr,
 			EncryptionPassword: encryptionPassword,
+			EncoderAddr:        encoderAddr,
 			Verbose:            viper.GetBool("verbose"),
 		}
 
