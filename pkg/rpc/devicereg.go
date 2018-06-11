@@ -20,17 +20,24 @@ type deviceRegImpl struct {
 	verbose       bool
 }
 
+// Config is a struct used to inject dependencies into our rpc service implementation
+type Config struct {
+	DB            postgres.DB
+	EncoderClient encoder.Encoder
+	Verbose       bool
+}
+
 // NewDeviceReg constructs a new DeviceRegistration instance. We pass in the
 // components needed for this component to operate.
-func NewDeviceReg(db postgres.DB, encoderClient encoder.Encoder, logger kitlog.Logger) devicereg.DeviceRegistration {
+func NewDeviceReg(config *Config, logger kitlog.Logger) devicereg.DeviceRegistration {
 	logger = kitlog.With(logger, "module", "rpc")
 	logger.Log("msg", "creating devicereg")
 
 	return &deviceRegImpl{
-		db:            db,
-		encoderClient: encoderClient,
+		db:            config.DB,
+		encoderClient: config.EncoderClient,
 		logger:        logger,
-		verbose:       true,
+		verbose:       config.Verbose,
 	}
 }
 
@@ -55,6 +62,10 @@ func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDev
 	device, err := createValidDevice(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.verbose {
+		d.logger.Log("method", "ClaimDevice", "deviceToken", req.DeviceToken, "broker", req.Broker)
 	}
 
 	tx, err := d.db.BeginTX()
@@ -116,6 +127,10 @@ func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeD
 	err = validateRevokeRequest(req)
 	if err != nil {
 		return nil, err
+	}
+
+	if d.verbose {
+		d.logger.Log("method", "RevokeDevice", "deviceToken", req.DeviceToken)
 	}
 
 	tx, err := d.db.BeginTX()
