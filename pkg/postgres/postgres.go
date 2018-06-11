@@ -60,8 +60,10 @@ type DB interface {
 
 	// DeleteDevice attempts to delete a device identified by its token and the
 	// public key of the owning user. If after deleting a device successfully the
-	// user has no remaining registered devices, we also delete the user record.
-	DeleteDevice(tx *sqlx.Tx, token, publicKey string) error
+	// user has no remaining registered devices, we also delete the user record. We
+	// return either an error or a slice of Streams which need to be destroyed on
+	// the stream encoder.
+	DeleteDevice(tx *sqlx.Tx, token, publicKey string) ([]*Stream, error)
 
 	// CreateStream saves a new stream record into the local DB. These are objects
 	// that allow us to keep a handle on a created stream for a device such that we
@@ -193,7 +195,7 @@ func (d *db) RegisterDevice(tx *sqlx.Tx, device *Device) (*Device, error) {
 			:latitude,
 			:disposition
 		)
-		RETURNING id, public_key`
+		RETURNING id, private_key, public_key`
 
 	deviceKeyPair, err := crypto.NewKeyPair()
 	if err != nil {
@@ -234,29 +236,50 @@ func (d *db) RegisterDevice(tx *sqlx.Tx, device *Device) (*Device, error) {
 // DeleteDevice finds the device identified by the given token, and deletes it
 // from the database. We also delete the associated user if they have no other
 // devices currently registered in the database.
-func (d *db) DeleteDevice(tx *sqlx.Tx, token, publicKey string) error {
-	sql := `DELETE FROM devices d
-		USING users u
-		WHERE u.id = d.user_id
+func (d *db) DeleteDevice(tx *sqlx.Tx, token, publicKey string) ([]*Stream, error) {
+	sql := `DELETE FROM streams s
+		USING devices d, users u
+		WHERE d.id = s.device_id
+		AND u.id = d.user_id
 		AND d.token = :token
 		AND u.public_key = :public_key
-		RETURNING u.id`
+		RETURNING s.uid`
 
 	mapArgs := map[string]interface{}{
 		"token":      token,
 		"public_key": publicKey,
 	}
 
+	rows, err := tx.NamedQuery(sql, mapArgs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to delete streams")
+	}
+
+	streams := []*Stream{}
+
+	for rows.Next() {
+		var s Stream
+		err = rows.StructScan(&s)
+		streams = append(streams, &s)
+	}
+
+	sql = `DELETE FROM devices d
+		USING users u
+		WHERE u.id = d.user_id
+		AND d.token = :token
+		AND u.public_key = :public_key
+		RETURNING u.id`
+
 	var userID int
 
 	sql, args, err := tx.BindNamed(sql, mapArgs)
 	if err != nil {
-		return errors.Wrap(err, "failed to bind named query to delete devices")
+		return nil, errors.Wrap(err, "failed to bind named query to delete devices")
 	}
 
 	err = tx.Get(&userID, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete device")
+		return nil, errors.Wrap(err, "failed to delete device")
 	}
 
 	// now count devices for the user
@@ -268,14 +291,14 @@ func (d *db) DeleteDevice(tx *sqlx.Tx, token, publicKey string) error {
 
 	sql, args, err = tx.BindNamed(sql, mapArgs)
 	if err != nil {
-		return errors.Wrap(err, "failed to bind named query to count devices")
+		return nil, errors.Wrap(err, "failed to bind named query to count devices")
 	}
 
 	var deviceCount int
 
 	err = tx.Get(&deviceCount, sql, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to count remaining devices")
+		return nil, errors.Wrap(err, "failed to count remaining devices")
 	}
 
 	if deviceCount == 0 {
@@ -287,11 +310,11 @@ func (d *db) DeleteDevice(tx *sqlx.Tx, token, publicKey string) error {
 
 		_, err = tx.NamedExec(sql, mapArgs)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete user")
+			return nil, errors.Wrap(err, "failed to delete user")
 		}
 	}
 
-	return nil
+	return streams, nil
 }
 
 // CreateStream now attempts to insert to the streams table the stream id we

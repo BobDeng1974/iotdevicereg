@@ -49,7 +49,7 @@ func (s *PostgresSuite) TearDownTest() {
 	}
 }
 
-func (s *PostgresSuite) TestRoundTrip() {
+func (s *PostgresSuite) TestFullLifecycle() {
 	tx, err := s.db.BeginTX()
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), tx)
@@ -70,6 +70,7 @@ func (s *PostgresSuite) TestRoundTrip() {
 
 	assert.NotEqual(s.T(), 0, device1.ID)
 	assert.NotEqual(s.T(), "", device1.PublicKey)
+	assert.NotEqual(s.T(), "", device1.PrivateKey)
 	assert.NotEqual(s.T(), "", device1.User.PrivateKey)
 	assert.NotEqual(s.T(), "", device1.User.PublicKey)
 	assert.NotEqual(s.T(), device1.PublicKey, device1.User.PublicKey)
@@ -110,8 +111,9 @@ func (s *PostgresSuite) TestRoundTrip() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 2, count)
 
-	err = s.db.DeleteDevice(tx, "abc123", device1.User.PublicKey)
+	streams, err := s.db.DeleteDevice(tx, "abc123", device1.User.PublicKey)
 	assert.Nil(s.T(), err)
+	assert.Len(s.T(), streams, 0)
 
 	err = tx.Get(&count, `SELECT COUNT(*) FROM users`)
 	assert.Nil(s.T(), err)
@@ -121,7 +123,7 @@ func (s *PostgresSuite) TestRoundTrip() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 1, count)
 
-	err = s.db.DeleteDevice(tx, "hij567", device2.User.PublicKey)
+	_, err = s.db.DeleteDevice(tx, "hij567", device2.User.PublicKey)
 	assert.Nil(s.T(), err)
 
 	err = tx.Get(&count, `SELECT COUNT(*) FROM users`)
@@ -182,10 +184,10 @@ func (s *PostgresSuite) TestErrorDeletingDevices() {
 	})
 	assert.Nil(s.T(), err)
 
-	err = s.db.DeleteDevice(tx, "hij567", "u_privkey")
+	_, err = s.db.DeleteDevice(tx, "hij567", "u_privkey")
 	assert.NotNil(s.T(), err)
 
-	err = s.db.DeleteDevice(tx, "abc123", "not_u_privkey")
+	_, err = s.db.DeleteDevice(tx, "abc123", "not_u_privkey")
 	assert.NotNil(s.T(), err)
 
 	tx.Rollback()
@@ -218,7 +220,36 @@ func (s *PostgresSuite) TestCreateStreams() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), 2, count)
 
-	err = s.db.CreateStream(tx, device.ID, "hij")
+	streams, err := s.db.DeleteDevice(tx, "abc123", device.User.PublicKey)
+	assert.Nil(s.T(), err)
+	assert.Len(s.T(), streams, 2)
+
+	assert.Equal(s.T(), "abc", streams[0].UID)
+	assert.Equal(s.T(), "hij", streams[1].UID)
+
+	tx.Rollback()
+}
+
+func (s *PostgresSuite) TestDuplicateStreamError() {
+	tx, err := s.db.BeginTX()
+	assert.Nil(s.T(), err)
+
+	device, err := s.db.RegisterDevice(tx, &postgres.Device{
+		Token:       "abc123",
+		Longitude:   2.3,
+		Latitude:    23.3,
+		Disposition: "indoor",
+		User: &postgres.User{
+			UID: "alice",
+		},
+	})
+
+	assert.Nil(s.T(), err)
+
+	err = s.db.CreateStream(tx, device.ID, "abc")
+	assert.Nil(s.T(), err)
+
+	err = s.db.CreateStream(tx, device.ID, "abc")
 	assert.NotNil(s.T(), err)
 
 	tx.Rollback()
