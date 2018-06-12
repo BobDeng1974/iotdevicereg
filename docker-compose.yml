@@ -27,6 +27,7 @@ services:
       - DEVICEREG_DATABASE_URL=postgres://devicereg:password@postgres:5432/devicereg_development?sslmode=disable
       - DEVICEREG_ENCRYPTION_PASSWORD=e3d741d6f84afc301d8e32c66e51f264
       - DEVICEREG_HASHID_SALT=014c02a69e9a095b851875888474d7fa
+      - GOCACHE=/.cache/go-build
 
   postgres:
     build:
