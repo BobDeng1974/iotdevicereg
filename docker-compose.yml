@@ -17,7 +17,7 @@ services:
     working_dir: /go/src/ARG_PKG
     ports:
       - "8080:8080"
-    command: [ "/go/src/ARG_PKG/build/run.sh", "/go/bin/ARG_BIN", "server", "--encoder", "encoder:8080" ]
+    command: [ "/go/src/ARG_PKG/build/run.sh", "/go/bin/ARG_BIN", "server", "--encoder", "encoder:8080", "--verbose"]
     depends_on:
       - postgres
     environment:
