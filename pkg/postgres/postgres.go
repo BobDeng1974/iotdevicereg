@@ -195,7 +195,7 @@ func (d *db) RegisterDevice(tx *sqlx.Tx, device *Device) (*Device, error) {
 			:latitude,
 			:disposition
 		)
-		RETURNING id, private_key, public_key`
+		RETURNING id, pgp_sym_decrypt(private_key, :encryption_password) AS private_key, public_key`
 
 	deviceKeyPair, err := crypto.NewKeyPair()
 	if err != nil {
