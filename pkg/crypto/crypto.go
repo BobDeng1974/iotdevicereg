@@ -1,10 +1,12 @@
 package crypto
 
 import (
-	"crypto/rand"
-	"encoding/base64"
+	"encoding/json"
 
 	"github.com/pkg/errors"
+	"github.com/thingful/zenroom-go"
+
+	"github.com/thingful/iotdevicereg/pkg/lua"
 )
 
 // KeyPair is a simple struct used for returning a key pair from the function
@@ -13,10 +15,10 @@ import (
 // the intended recipient.
 type KeyPair struct {
 	// PrivateKey is the private key part of the key pair.
-	PrivateKey string
+	PrivateKey string `json:"secret"`
 
 	// PublicKey is the public key part of the key pair.
-	PublicKey string
+	PublicKey string `json:"public"`
 }
 
 // NewKeyPair is a function that returns an instantiated key pair ready for
@@ -25,20 +27,21 @@ type KeyPair struct {
 // using Zenroom, to create a real key pair that Zenroom is able to use for
 // encryption.
 func NewKeyPair() (*KeyPair, error) {
-	priv := make([]byte, 32)
-	_, err := rand.Read(priv)
+	script, err := lua.Asset("generatekeys.lua")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create fake private key")
+		return nil, errors.Wrap(err, "failed to read zenroom script")
 	}
 
-	pub := make([]byte, 32)
-	_, err = rand.Read(pub)
+	keys, err := zenroom.Exec(string(script), "", "")
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create fake public key")
+		return nil, errors.Wrap(err, "failed to execute zenroom script")
 	}
 
-	return &KeyPair{
-		PrivateKey: base64.StdEncoding.EncodeToString(priv),
-		PublicKey:  base64.StdEncoding.EncodeToString(pub),
-	}, nil
+	var keyPair KeyPair
+	err = json.Unmarshal([]byte(keys), &keyPair)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal zenroom output")
+	}
+
+	return &keyPair, nil
 }
