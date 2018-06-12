@@ -27,16 +27,19 @@ type KeyPair struct {
 // using Zenroom, to create a real key pair that Zenroom is able to use for
 // encryption.
 func NewKeyPair() (*KeyPair, error) {
+	// read script from go-bindata asset
 	script, err := lua.Asset("generatekeys.lua")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read zenroom script")
 	}
 
+	// execute zenroom, passing in the script cast to a string
 	keys, err := zenroom.Exec(string(script), "", "")
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute zenroom script")
 	}
 
+	// unmarshal the returned data into a struct
 	var keyPair KeyPair
 	err = json.Unmarshal([]byte(keys), &keyPair)
 	if err != nil {
