@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/prometheus/client_golang/prometheus"
 	devicereg "github.com/thingful/twirp-devicereg-go"
 	encoder "github.com/thingful/twirp-encoder-go"
 	"github.com/twitchtv/twirp"
@@ -13,6 +14,22 @@ import (
 	"github.com/thingful/iotdevicereg/pkg/postgres"
 )
 
+var (
+	// encoderErrorCounter is a prometheus counter recording a count of any errors
+	// that occur when writing to the stream encoder
+	encoderErrorCounter = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "encoder_errors",
+			Help: "Count of errors when calling to stream encoder",
+		},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(encoderErrorCounter)
+}
+
+// deviceRegImpl is our implementation of the device registration rpc server
 type deviceRegImpl struct {
 	logger        kitlog.Logger
 	db            postgres.DB
@@ -104,6 +121,7 @@ func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDev
 		Disposition: encoder.CreateStreamRequest_Disposition(encoder.CreateStreamRequest_Disposition_value[req.Disposition.String()]),
 	})
 	if err != nil {
+		encoderErrorCounter.Inc()
 		return nil, twirp.InternalErrorWith(err)
 	}
 
@@ -158,6 +176,7 @@ func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeD
 			StreamUid: stream.UID,
 		})
 		if err != nil {
+			encoderErrorCounter.Inc()
 			return nil, twirp.InternalErrorWith(err)
 		}
 	}
