@@ -34,14 +34,14 @@ func NewKeyPair() (*KeyPair, error) {
 	}
 
 	// execute zenroom, passing in the script cast to a string
-	keys, err := zenroom.Exec(string(script), "", "")
+	keys, err := zenroom.Exec(script, nil, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to execute zenroom script")
 	}
 
 	// unmarshal the returned data into a struct
 	var keyPair KeyPair
-	err = json.Unmarshal([]byte(keys), &keyPair)
+	err = json.Unmarshal(keys, &keyPair)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal zenroom output")
 	}
