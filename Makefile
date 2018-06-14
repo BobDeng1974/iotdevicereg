@@ -30,8 +30,8 @@ SRC_DIRS := cmd pkg
 ALL_ARCH := amd64 arm arm64
 
 ifeq ($(ARCH),amd64)
-	BASE_IMAGE?=alpine
-	BUILD_IMAGE?=golang:1.10-alpine
+	BASE_IMAGE?=busybox:glibc
+	BUILD_IMAGE?=golang:1.10-stretch
 endif
 ifeq ($(ARCH),arm)
 	BASE_IMAGE?=arm32v7/busybox
@@ -39,11 +39,14 @@ ifeq ($(ARCH),arm)
 endif
 ifeq ($(ARCH),arm64)
 	BASE_IMAGE?=arm64v8/busybox
-	BUILD_IMAGE?=arm64v8/golang:1.10-alpine
+	BUILD_IMAGE?=arm64v8/golang:1.10-stretch
 endif
 
 IMAGE := $(REGISTRY)/$(BIN)-$(ARCH)
 all: build
+
+UID := $(shell id -u)
+GID := $(shell id -g)
 
 build-%:
 	@$(MAKE) --no-print-directory ARCH=$* build
@@ -129,6 +132,8 @@ container-name: ## Show the name of the delivery container
 	@sed \
 		-e 's|ARG_FROM|$(BUILD_IMAGE)|g' \
 		-e 's|ARG_WORKDIR|/go/src/$(PKG)|g' \
+		-e 's|ARG_GID|$(GID)|g' \
+		-e 's|ARG_UID|$(UID)|g' \
 		Dockerfile.dev > .dockerfile-dev-$(ARCH)
 	@sed \
 		-e 's|ARG_DOCKERFILE|.dockerfile-dev-$(ARCH)|g' \

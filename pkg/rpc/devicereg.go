@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,18 +16,24 @@ import (
 )
 
 var (
-	// encoderErrorCounter is a prometheus counter recording a count of any errors
-	// that occur when writing to the stream encoder
-	encoderErrorCounter = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Name: "encoder_errors",
-			Help: "Count of errors when calling to stream encoder",
+	// encoderWrites is a prometheus histogram recording writes and durations of
+	// calls to the encoder keyed by method and status.
+	encoderWrites = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "decode_encoder_rpc",
+			Help: "Histogram of calls to the encoder RPC endpoint",
+		},
+		[]string{
+			// which method are we calling
+			"method",
+			// is the status of the request: success or error
+			"status",
 		},
 	)
 )
 
 func init() {
-	prometheus.MustRegister(encoderErrorCounter)
+	prometheus.MustRegister(encoderWrites)
 }
 
 // deviceRegImpl is our implementation of the device registration rpc server
@@ -106,6 +113,8 @@ func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDev
 		return nil, twirp.InternalErrorWith(err)
 	}
 
+	start := time.Now()
+
 	// attempt to create the default stream - if this fails we can roll back the
 	// transaction
 	resp, err := d.encoderClient.CreateStream(ctx, &encoder.CreateStreamRequest{
@@ -120,10 +129,16 @@ func (d *deviceRegImpl) ClaimDevice(ctx context.Context, req *devicereg.ClaimDev
 		},
 		Disposition: encoder.CreateStreamRequest_Disposition(encoder.CreateStreamRequest_Disposition_value[req.Disposition.String()]),
 	})
+
+	duration := time.Since(start)
+
 	if err != nil {
-		encoderErrorCounter.Inc()
+		encoderWrites.WithLabelValues("CreateStream", "error").Observe(duration.Seconds())
+
 		return nil, twirp.InternalErrorWith(err)
 	}
+
+	encoderWrites.WithLabelValues("CreateStream", "success").Observe(duration.Seconds())
 
 	err = d.db.CreateStream(tx, device.ID, resp.StreamUid)
 	if err != nil {
@@ -172,13 +187,20 @@ func (d *deviceRegImpl) RevokeDevice(ctx context.Context, req *devicereg.RevokeD
 	}
 
 	for _, stream := range streams {
+		start := time.Now()
+
 		_, err = d.encoderClient.DeleteStream(ctx, &encoder.DeleteStreamRequest{
 			StreamUid: stream.UID,
 		})
+
+		duration := time.Since(start)
+
 		if err != nil {
-			encoderErrorCounter.Inc()
+			encoderWrites.WithLabelValues("DeleteStream", "error").Observe(duration.Seconds())
 			return nil, twirp.InternalErrorWith(err)
 		}
+
+		encoderWrites.WithLabelValues("DeleteStream", "success").Observe(duration.Seconds())
 	}
 
 	return &devicereg.RevokeDeviceResponse{}, err

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script used when running tests inside the containerized environment.
 
@@ -14,12 +14,12 @@ export CGO_ENABLED=${CGO_ENABLED:-0}
 
 TARGETS=$(for d in "$@"; do echo ./$d/...; done)
 
-go test -i -installsuffix "static" ${TARGETS}
+go test -i ${TARGETS}
 
 if [ ! -z "$RUN" ]; then
     go test -v -timeout 30s ${TARGETS} -run "$RUN"
 else
-    go test -v -p 1 -installsuffix "static" -coverprofile=.coverage/coverage.out -timeout 30s ${TARGETS}
+    go test -v -p 1 -coverprofile=.coverage/coverage.out -timeout 30s ${TARGETS}
     go tool cover -html=.coverage/coverage.out -o .coverage/coverage.html
     go tool cover -func=.coverage/coverage.out
     echo

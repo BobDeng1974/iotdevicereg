@@ -1,4 +1,4 @@
-box: golang:1.10-alpine
+box: golang:1.10-stretch
 
 services:
   - id: postgres
@@ -30,13 +30,13 @@ build:
     - script:
         name: install build tooling
         code: |
-          apk --no-cache add build-base git
+          apt-get install -y git
 
     - script:
         name: go test
         code: |
           echo
-          go test -i -installsuffix "static" ./cmd/... ./pkg/...
-          go test -v -p 1 -installsuffix "static" -coverprofile=$WERCKER_REPORT_ARTIFACTS_DIR/coverage.out -timeout 30s ./pkg/...
+          go test -i ./cmd/... ./pkg/...
+          go test -v -p 1 -coverprofile=$WERCKER_REPORT_ARTIFACTS_DIR/coverage.out -timeout 30s ./pkg/...
           go tool cover -html=$WERCKER_REPORT_ARTIFACTS_DIR/coverage.out -o $WERCKER_REPORT_ARTIFACTS_DIR/coverage.html
           go tool cover -func=$WERCKER_REPORT_ARTIFACTS_DIR/coverage.out

@@ -265,6 +265,15 @@
   version = "v0.0.1"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/thingful/zenroom-go"
+  packages = [
+    ".",
+    "lib"
+  ]
+  revision = "d81a089ede134451b35a3e5e85759187b9cf435c"
+
+[[projects]]
   name = "github.com/twitchtv/twirp"
   packages = [
     ".",
@@ -302,6 +311,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d46d2d9d55ffb2388a7153a6f0134c84083241ce0b22bfd9239fa2579ebbde62"
+  inputs-digest = "1b3d61c6fe5b3025ed375ab00dc587cbf366f2b680f4434a4aa77230a0acf664"
   solver-name = "gps-cdcl"
   solver-version = 1
