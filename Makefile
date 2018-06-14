@@ -39,7 +39,7 @@ ifeq ($(ARCH),arm)
 endif
 ifeq ($(ARCH),arm64)
 	BASE_IMAGE?=arm64v8/busybox
-	BUILD_IMAGE?=arm64v8/golang:1.10-alpine
+	BUILD_IMAGE?=arm64v8/golang:1.10-stretch
 endif
 
 IMAGE := $(REGISTRY)/$(BIN)-$(ARCH)
