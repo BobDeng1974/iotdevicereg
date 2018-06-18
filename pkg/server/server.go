@@ -70,7 +70,7 @@ func NewServer(config *Config, logger kitlog.Logger) *Server {
 	hooks := twrpprom.NewServerHooks(nil)
 
 	logger = kitlog.With(logger, "module", "server")
-	logger.Log("msg", "creating server")
+	logger.Log("msg", "creating server", "encoder", config.EncoderAddr)
 
 	twirpHandler := devicereg.NewDeviceRegistrationServer(deviceReg, hooks)
 
